@@ -46,9 +46,9 @@ app.use(
 );
 app.use(compression());
 
-// CORS: strict allowlist — no wildcard in production
+// CORS: dynamic allowlist supporting localhost, configured CLIENT_URL, and Vercel deployments
 const ALLOWED_ORIGINS = [
-  process.env.CLIENT_URL || "http://localhost:5173",
+  process.env.CLIENT_URL,
   "http://localhost:5173",
   "http://localhost:3000",
 ].filter(Boolean);
@@ -56,13 +56,27 @@ const ALLOWED_ORIGINS = [
 app.use(
   cors({
     origin: (origin, cb) => {
-      // Allow server-to-server and same-origin requests (no origin header)
-      if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-      cb(new Error(`CORS: Origin '${origin}' is not allowed.`));
+      // 1. Allow requests with no origin (server-to-server, mobile clients, health checks)
+      if (!origin) {
+        return cb(null, true);
+      }
+
+      // 2. Exact match in allowlist (localhost, process.env.CLIENT_URL)
+      if (ALLOWED_ORIGINS.includes(origin)) {
+        return cb(null, true);
+      }
+
+      // 3. Match localhost or any Vercel preview/production subdomain
+      if (/^http:\/\/localhost(:\d+)?$/.test(origin) || /\.vercel\.app$/.test(origin)) {
+        return cb(null, true);
+      }
+
+      // Safe rejection without throwing unhandled error
+      cb(null, false);
     },
     credentials: true,
-    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Accept"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
   })
 );
 app.use(express.json({ limit: "32kb" }));

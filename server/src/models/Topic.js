@@ -26,6 +26,4 @@ const topicSchema = new mongoose.Schema(
   }
 );
 
-topicSchema.index({ name: 1 });
-
 export default mongoose.model("Topic", topicSchema);
