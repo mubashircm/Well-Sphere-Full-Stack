@@ -1,0 +1,25 @@
+{
+  "name": "wellsphere-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WellSphere — Evidence-aware editorial health platform built with MERN stack",
+  "scripts": {
+    "dev:client": "npm --prefix client run dev",
+    "dev:server": "npm --prefix server run dev",
+    "build:client": "npm --prefix client run build",
+    "lint:client": "npm --prefix client run lint",
+    "start:server": "npm --prefix server start",
+    "seed:admin": "npm --prefix server run seed:admin",
+    "build": "npm --prefix client run build"
+  },
+  "keywords": [
+    "health",
+    "editorial",
+    "mern",
+    "react",
+    "nodejs",
+    "mongodb"
+  ],
+  "author": "WellSphere Team",
+  "license": "MIT"
+}

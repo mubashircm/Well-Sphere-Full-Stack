@@ -1,0 +1,76 @@
+# ==========================================
+# 1. CRITICAL: SECRETS & API KEYS
+# ==========================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+*.env
+
+# ==========================================
+# 2. DEPENDENCIES & PACKAGE MANAGERS
+# ==========================================
+node_modules/
+*/node_modules/
+package-lock.json.bak
+yarn-error.log*
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ==========================================
+# 3. BUILD OUTPUTS & COMPILED CODE
+# ==========================================
+dist/
+dist-ssr/
+build/
+out/
+client/dist/
+*.local
+
+# ==========================================
+# 4. LOGS & RUNTIME DATA
+# ==========================================
+logs/
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# ==========================================
+# 5. OS & SYSTEM FILES (Windows & macOS)
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ==========================================
+# 6. IDEs & CODE EDITORS CONFIGURATION
+# ==========================================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ==========================================
+# 7. TEMPORARY FILES, UPLOADS & CACHE
+# ==========================================
+uploads/
+server/uploads/
+temp/
+tmp/
+.cache/
+.eslintcache
+coverage/
