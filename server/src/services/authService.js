@@ -15,6 +15,7 @@ import { sendOtpEmail, sendMail } from "./mailer.js";
 
 const publicUser = (user) => ({
   id: user.id || user._id,
+  _id: user._id || user.id,
   name: user.name,
   email: user.email,
   role: user.role,
@@ -408,14 +409,40 @@ export async function requestPasswordReset(email) {
   user.resetTokenHash = digest(token);
   user.resetTokenExpiresAt = new Date(Date.now() + 3600000);
   await repository.saveUser(user);
+  const baseUrl = (process.env.CLIENT_URL || process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
+  const resetUrl = `${baseUrl}/reset-password?token=${token}`;
   await sendMail({
     to: user.email,
     subject: "Reset your WellSphere password",
-    text: `Use this link to reset your password: ${`${process.env.CLIENT_URL || "http://localhost:5173"}/reset-password?token=${token}`}`,
+    text: `Use this link to reset your password: ${resetUrl}`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 540px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px;">
+        <div style="margin-bottom: 24px;">
+          <span style="font-size: 20px; font-weight: bold; color: #134e4a;">WellSphere</span>
+          <span style="display: inline-block; margin-left: 8px; padding: 2px 8px; font-size: 11px; font-weight: 600; text-transform: uppercase; background: #f0fdfa; color: #0f766e; border-radius: 6px; border: 1px solid #ccfbf1;">Account Security</span>
+        </div>
+        <h2 style="font-size: 20px; font-weight: 700; color: #0f172a; margin-top: 0; margin-bottom: 12px;">Reset Your Password</h2>
+        <p style="font-size: 14px; color: #475569; line-height: 1.6; margin-bottom: 24px;">
+          We received a request to reset the password for your WellSphere account. Click the button below to choose a new password:
+        </p>
+        <div style="text-align: center; margin-bottom: 24px;">
+          <a href="${resetUrl}" style="display: inline-block; background: #0f766e; color: #ffffff; font-weight: 600; font-size: 14px; padding: 12px 28px; border-radius: 10px; text-decoration: none; box-shadow: 0 2px 4px rgba(15, 118, 110, 0.2);">Reset Password</a>
+        </div>
+        <p style="font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 12px;">
+          Or copy and paste this link into your browser:
+        </p>
+        <p style="font-size: 12px; color: #0f766e; word-break: break-all; margin-bottom: 24px;">
+          ${resetUrl}
+        </p>
+        <p style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin-bottom: 0;">
+          This link will expire in <strong>1 hour</strong>. If you did not request a password reset, you can safely ignore this email.
+        </p>
+      </div>
+    `,
   });
 }
 
-export async function resetPassword({ password, token }) {
+export async function resetPassword({ password, token }, req) {
   const user = await repository.findUserByResetToken(digest(token));
   if (!user) {
     throw new AppError(400, "INVALID_RESET_TOKEN", "This reset link is invalid or expired.");
@@ -424,7 +451,9 @@ export async function resetPassword({ password, token }) {
   user.resetTokenHash = undefined;
   user.resetTokenExpiresAt = undefined;
   await repository.saveUser(user);
-  await repository.revokeUserSessions(user.id);
+  await repository.revokeUserSessions(user.id || user._id);
+  await markDeviceTrusted(user, req);
+  return issueSession(user, req);
 }
 
 export const newDeviceId = deviceId;

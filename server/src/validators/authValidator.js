@@ -10,12 +10,12 @@ const disposableDomains = new Set([
 ]);
 
 const text = (value) => (typeof value === "string" ? value.trim() : "");
+
+export const PASSWORD_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?])[A-Za-z\d!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]{8,15}$/;
+
 const password = (value) =>
-  typeof value === "string" &&
-  value.length >= 12 &&
-  /[a-z]/.test(value) &&
-  /[A-Z]/.test(value) &&
-  /\d/.test(value);
+  typeof value === "string" && PASSWORD_REGEX.test(value);
 
 const invalid = (message) => {
   throw new AppError(400, "VALIDATION_ERROR", message);
@@ -25,25 +25,29 @@ export const signupInput = (body = {}) => {
   const name = text(body.name);
   const email = text(body.email).toLowerCase();
   const termsAccepted = body.termsAccepted === true;
-  if (
-    !name ||
-    name.length > 80 ||
-    !emailPattern.test(email) ||
-    disposableDomains.has(email.split("@")[1]) ||
-    !password(body.password) ||
-    body.password !== body.confirmPassword ||
-    !termsAccepted
-  ) {
+  if (!name || name.length > 80) {
+    invalid("Please provide a valid full name (maximum 80 characters).");
+  }
+  if (!emailPattern.test(email) || disposableDomains.has(email.split("@")[1])) {
+    invalid("Please provide a valid, non-disposable email address.");
+  }
+  if (!password(body.password)) {
     invalid(
-      "Provide a name, non-disposable email, accepted terms, and a matching 12-character password with upper, lower, and numeric characters."
+      "Password must be 8-15 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character."
     );
+  }
+  if (body.password !== body.confirmPassword) {
+    invalid("Passwords do not match. Please verify your password confirmation.");
+  }
+  if (!termsAccepted) {
+    invalid("You must accept the terms and conditions to create an account.");
   }
   return { name, email, password: body.password };
 };
 
 export const loginInput = (body = {}) => {
   const email = text(body.email).toLowerCase();
-  if (!emailPattern.test(email) || typeof body.password !== "string") {
+  if (!emailPattern.test(email) || typeof body.password !== "string" || !body.password) {
     invalid("Provide a valid email address and password.");
   }
   return { email, password: body.password };
@@ -85,10 +89,17 @@ export const resetRequestInput = (body = {}) => {
 };
 
 export const resetInput = (body = {}) => {
-  if (!text(body.token) || !password(body.password) || body.password !== body.confirmPassword) {
+  const token = text(body.token);
+  if (!token) {
+    invalid("Missing or invalid reset token. Please request a new password reset link.");
+  }
+  if (!password(body.password)) {
     invalid(
-      "Provide a valid reset token and matching 12-character password with upper, lower, and numeric characters."
+      "Password must be 8-15 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character."
     );
   }
-  return { token: text(body.token), password: body.password };
+  if (body.password !== body.confirmPassword) {
+    invalid("Passwords do not match. Please verify your password confirmation.");
+  }
+  return { token, password: body.password };
 };

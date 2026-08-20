@@ -138,11 +138,14 @@ export async function forgotPassword(req, res) {
 }
 
 export async function resetPassword(req, res) {
-  await auth.resetPassword(validate.resetInput(req.body));
-  clearSession(res);
+  ensureDevice(req, res);
+  const session = await auth.resetPassword(validate.resetInput(req.body), req);
+  writeSession(res, session);
   res.status(200).json({
     success: true,
-    data: null,
-    message: "Your password has been reset. Please sign in.",
+    data: { user: session.user, token: session.access },
+    user: session.user,
+    token: session.access,
+    message: "Password updated successfully",
   });
 }

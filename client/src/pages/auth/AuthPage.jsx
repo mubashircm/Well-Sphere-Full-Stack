@@ -5,6 +5,7 @@ import Feedback from "../../components/ui/Feedback.jsx";
 import { apiClient } from "../../services/api/client.js";
 import Logo from "../../components/common/Logo.jsx";
 import ForgotPasswordPage from "./ForgotPasswordPage.jsx";
+import { toast } from "../../components/ui/Toast.jsx";
 
 const copy = {
   login: ["Welcome back", "Sign in to access your saved guides and personalized health feeds."],
@@ -12,6 +13,9 @@ const copy = {
   forgot: ["Reset your password", "Enter your registered email and we will send you a secure password recovery link."],
   reset: ["Choose a new password", "Create a new strong password for your WellSphere account."],
 };
+
+export const PASSWORD_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?])[A-Za-z\d!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]{8,15}$/;
 
 function EyeIcon({ className = "w-5 h-5" }) {
   return (
@@ -60,6 +64,15 @@ export function AuthPage({ mode = "login" }) {
   const { setUser } = useAuth();
   const [title, description] = copy[mode] || copy.login;
 
+  const resetToken = params.get("token");
+
+  // Validate reset token presence when landing on reset mode
+  useEffect(() => {
+    if (mode === "reset" && !resetToken) {
+      setError("No password reset token found in the link. Please request a new reset link.");
+    }
+  }, [mode, resetToken]);
+
   // Auto-focus OTP input when 2FA is triggered
   useEffect(() => {
     if (is2FA && otpInputRef.current) {
@@ -80,9 +93,11 @@ export function AuthPage({ mode = "login" }) {
     if (location.state?.from?.pathname) {
       return location.state.from.pathname;
     }
-    if (user?.role === "superadmin") return "/admin";
-    if (user?.role === "editor") return "/editor";
-    return "/dashboard";
+    const role = (user?.role || "").toLowerCase();
+    if (role === "superadmin") return "/admin";
+    if (role === "editor") return "/editor";
+    if (role === "user") return "/dashboard";
+    return "/dashboard"; // Fallback destination
   }
 
   async function handleResendOtp() {
@@ -161,17 +176,38 @@ export function AuthPage({ mode = "login" }) {
     const form = new FormData(event.currentTarget);
     setError("");
     setMessage("");
+
+    const body = Object.fromEntries(form);
+    if (mode === "signup") {
+      body.termsAccepted = form.get("termsAccepted") === "on";
+    }
+    if (mode === "reset") {
+      const token = params.get("token");
+      if (!token) {
+        setError("No reset token found in the link. Please request a new password recovery link.");
+        return;
+      }
+      body.token = token;
+    }
+
+    if (mode === "signup" || mode === "reset") {
+      const pwd = body.password || "";
+      const confirmPwd = body.confirmPassword || "";
+      if (!PASSWORD_REGEX.test(pwd)) {
+        setError(
+          "Password must be 8-15 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character."
+        );
+        return;
+      }
+      if (pwd !== confirmPwd) {
+        setError("Passwords do not match. Please verify your password confirmation.");
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
-      const body = Object.fromEntries(form);
-      if (mode === "signup") {
-        body.termsAccepted = form.get("termsAccepted") === "on";
-      }
-      if (mode === "reset") {
-        body.token = params.get("token");
-      }
-
       const endpoint = {
         login: "/auth/login",
         signup: "/auth/signup",
@@ -190,16 +226,24 @@ export function AuthPage({ mode = "login" }) {
         });
         setMessage("A 6-digit verification code has been dispatched to your email.");
         setCountdown(60);
-      } else if (mode === "forgot" || mode === "reset") {
-        setMessage(
-          mode === "reset"
-            ? "Password reset successful! You can now sign in with your new password."
-            : "If an account with that email exists, a password reset link has been dispatched."
-        );
+      } else if (mode === "forgot") {
+        setMessage("If an account with that email exists, a password reset link has been dispatched.");
       } else {
-        const authenticatedUser = result.user || result.data?.user;
-        setUser(authenticatedUser);
-        navigate(getRedirectDestination(authenticatedUser), { replace: true });
+        const authenticatedUser = result?.user || result?.data?.user;
+        if (mode === "reset") {
+          toast.success("Password updated successfully!");
+        }
+        if (authenticatedUser) {
+          setUser(authenticatedUser);
+          navigate(getRedirectDestination(authenticatedUser), { replace: true });
+        } else {
+          if (mode === "reset") {
+            toast.success("Password updated successfully! Please sign in.");
+            navigate("/login", { replace: true });
+          } else {
+            navigate(getRedirectDestination(null), { replace: true });
+          }
+        }
       }
     } catch (requestError) {
       setError(requestError.message || "An error occurred. Please try again.");
@@ -339,20 +383,22 @@ export function AuthPage({ mode = "login" }) {
             </div>
           )}
 
-          <div>
-            <label htmlFor="account-email" className="block text-sm font-medium text-slate-700 mb-1">
-              Email Address
-            </label>
-            <input
-              id="account-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
-              required
-              className="w-full border border-slate-200 focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 rounded-xl px-4 py-2.5 text-sm transition-all outline-none bg-white text-slate-900 placeholder:text-slate-400"
-            />
-          </div>
+          {mode !== "reset" && (
+            <div>
+              <label htmlFor="account-email" className="block text-sm font-medium text-slate-700 mb-1">
+                Email Address
+              </label>
+              <input
+                id="account-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                required
+                className="w-full border border-slate-200 focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 rounded-xl px-4 py-2.5 text-sm transition-all outline-none bg-white text-slate-900 placeholder:text-slate-400"
+              />
+            </div>
+          )}
 
           {passwordFields && (
             <div>
@@ -391,8 +437,8 @@ export function AuthPage({ mode = "login" }) {
               </div>
 
               {mode !== "login" && (
-                <p className="text-xs text-slate-500 mt-1">
-                  Use 12 or more characters with uppercase, lowercase, and a number.
+                <p className="text-xs text-slate-500 mt-1.5 leading-normal">
+                  8-15 characters with uppercase, lowercase, number &amp; special character (e.g., Sphere@123)
                 </p>
               )}
             </div>

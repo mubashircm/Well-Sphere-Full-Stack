@@ -116,7 +116,7 @@ export function ForgotPasswordPage() {
             <svg className="w-4 h-4 text-teal-700 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>The link will expire in <strong>15 minutes</strong>.</span>
+            <span>The link will expire in <strong>1 hour</strong>.</span>
           </div>
 
           {/* 60-Second Countdown & Resend Button */}
