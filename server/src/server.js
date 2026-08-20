@@ -46,9 +46,10 @@ app.use(
 );
 app.use(compression());
 
-// CORS: dynamic allowlist supporting localhost, configured CLIENT_URL, and Vercel deployments
+// CORS: dynamic allowlist supporting localhost, configured CLIENT_URL/FRONTEND_URL, and Vercel deployments
 const ALLOWED_ORIGINS = [
   process.env.CLIENT_URL,
+  process.env.FRONTEND_URL,
   "http://localhost:5173",
   "http://localhost:3000",
 ].filter(Boolean);
@@ -56,22 +57,26 @@ const ALLOWED_ORIGINS = [
 app.use(
   cors({
     origin: (origin, cb) => {
-      // 1. Allow requests with no origin (server-to-server, mobile clients, health checks)
+      // 1. Allow requests with no origin (server-to-server, mobile clients, Postman, health checks)
       if (!origin) {
         return cb(null, true);
       }
 
-      // 2. Exact match in allowlist (localhost, process.env.CLIENT_URL)
+      // 2. Exact match in allowlist (localhost, process.env.CLIENT_URL, process.env.FRONTEND_URL)
       if (ALLOWED_ORIGINS.includes(origin)) {
         return cb(null, true);
       }
 
-      // 3. Match localhost or any Vercel preview/production subdomain
-      if (/^http:\/\/localhost(:\d+)?$/.test(origin) || /\.vercel\.app$/.test(origin)) {
+      // 3. Match localhost (any port) or any Vercel deployment preview/production subdomain
+      if (
+        /^http:\/\/localhost(:\d+)?$/.test(origin) ||
+        /^https:\/\/.*\.vercel\.app$/.test(origin) ||
+        origin.endsWith(".vercel.app")
+      ) {
         return cb(null, true);
       }
 
-      // Safe rejection without throwing unhandled error
+      // Safe rejection without throwing unhandled error (prevents 500 crashes)
       cb(null, false);
     },
     credentials: true,
